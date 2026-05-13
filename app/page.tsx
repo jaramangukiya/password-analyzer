@@ -13,6 +13,7 @@ type ResultType = {
   };
   hash: string;
   score: number;
+  suggestions: string[];
 };
 
 export default function Home() {
@@ -23,10 +24,16 @@ export default function Home() {
     if (!password) return;
 
     let charset = 0;
-    if (/[a-z]/.test(password)) charset += 26;
-    if (/[A-Z]/.test(password)) charset += 26;
-    if (/[0-9]/.test(password)) charset += 10;
-    if (/[^A-Za-z0-9]/.test(password)) charset += 32;
+
+    const hasLower = /[a-z]/.test(password);
+    const hasUpper = /[A-Z]/.test(password);
+    const hasNumber = /[0-9]/.test(password);
+    const hasSpecial = /[^A-Za-z0-9]/.test(password);
+
+    if (hasLower) charset += 26;
+    if (hasUpper) charset += 26;
+    if (hasNumber) charset += 10;
+    if (hasSpecial) charset += 32;
 
     const entropy = password.length * Math.log2(charset || 1);
 
@@ -61,8 +68,34 @@ export default function Home() {
     };
 
     const times: any = {};
+
     for (const key in speeds) {
       times[key] = formatTime(combinations / speeds[key]);
+    }
+
+    // Generate Strong Password Suggestions
+    const suggestions: string[] = [];
+
+    const specialChars = ["#", "@", "!", "$", "&"];
+    const numbers = ["123", "786", "007", "999", "2026"];
+
+    for (let i = 0; i < 7; i++) {
+      const special =
+        specialChars[Math.floor(Math.random() * specialChars.length)];
+
+      const number =
+        numbers[Math.floor(Math.random() * numbers.length)];
+
+      const randomUpper =
+        password.charAt(0).toUpperCase() + password.slice(1);
+
+      const randomEnd =
+        Math.random().toString(36).substring(2, 5);
+
+      const newPassword =
+        `${randomUpper}${special}${number}${randomEnd}`;
+
+      suggestions.push(newPassword);
     }
 
     const res = await fetch("/api/hash", {
@@ -79,94 +112,153 @@ export default function Home() {
       times,
       hash: hashData.hashed,
       score,
+      suggestions,
     });
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-black via-gray-900 to-gray-800 flex items-center justify-center p-6">
 
-      <div className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-3xl p-8 w-full max-w-xl">
+      <div className="grid md:grid-cols-2 gap-6 w-full max-w-7xl">
 
-        <h1 className="text-3xl font-bold text-center text-white mb-6">
-          🔐 Password Security Analyzer
-        </h1>
+        {/* Left Side - Analyzer */}
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-3xl p-8">
 
-        <input
-          type="text"
-          placeholder="Enter your password..."
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="w-full p-3 rounded-xl bg-white/10 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
-        />
+          <h1 className="text-3xl font-bold text-center text-white mb-6">
+            🔐 Password Security Analyzer
+          </h1>
 
-        <button
-          onClick={analyze}
-          className="w-full bg-blue-600 hover:bg-blue-700 transition-all text-white p-3 rounded-xl font-semibold"
-        >
-          Analyze Password
-        </button>
+          <input
+            type="text"
+            placeholder="Enter your password..."
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className="w-full p-3 rounded-xl bg-white/10 text-white border border-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4"
+          />
 
-        {data && (
-          <div className="mt-6 text-white">
+          <button
+            onClick={analyze}
+            className="w-full bg-blue-600 hover:bg-blue-700 transition-all text-white p-3 rounded-xl font-semibold"
+          >
+            Analyze Password
+          </button>
 
-            {/* Strength */}
-            <p className={`text-xl font-semibold ${data.color}`}>
-              Strength: {data.strength}
-            </p>
+          {data && (
+            <div className="mt-6 text-white">
 
-            {/* Progress Bar */}
-            <div className="w-full bg-gray-700 rounded-full h-3 mt-2">
-              <div
-                className="h-3 rounded-full transition-all duration-500"
-                style={{
-                  width: `${data.score}%`,
-                  background:
-                    data.score === 100
-                      ? "#22c55e"
-                      : data.score === 66
-                      ? "#facc15"
-                      : "#ef4444",
-                }}
-              ></div>
-            </div>
+              {/* Strength */}
+              <p className={`text-xl font-semibold ${data.color}`}>
+                Strength: {data.strength}
+              </p>
 
-            {/* Entropy */}
-            <p className="mt-3 text-gray-300">
-              Entropy: <span className="text-white font-semibold">{data.entropy} bits</span>
-            </p>
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-700 rounded-full h-3 mt-2">
+                <div
+                  className="h-3 rounded-full transition-all duration-500"
+                  style={{
+                    width: `${data.score}%`,
+                    background:
+                      data.score === 100
+                        ? "#22c55e"
+                        : data.score === 66
+                        ? "#facc15"
+                        : "#ef4444",
+                  }}
+                ></div>
+              </div>
 
-            {/* Crack Time */}
-            <div className="mt-5">
-              <h3 className="font-semibold text-lg mb-2">⏱ Crack Time</h3>
+              {/* Entropy */}
+              <p className="mt-3 text-gray-300">
+                Entropy:
+                <span className="text-white font-semibold">
+                  {" "}
+                  {data.entropy} bits
+                </span>
+              </p>
 
-              <div className="grid grid-cols-3 gap-3 text-center">
-                <div className="bg-gray-800 p-3 rounded-xl">
-                  <p className="text-sm text-gray-400">MD5</p>
-                  <p className="font-semibold">{data.times.MD5}</p>
-                </div>
+              {/* Crack Time */}
+              <div className="mt-5">
+                <h3 className="font-semibold text-lg mb-2">
+                  ⏱ Crack Time
+                </h3>
 
-                <div className="bg-gray-800 p-3 rounded-xl">
-                  <p className="text-sm text-gray-400">SHA-256</p>
-                  <p className="font-semibold">{data.times["SHA-256"]}</p>
-                </div>
+                <div className="grid grid-cols-3 gap-3 text-center">
 
-                <div className="bg-gray-800 p-3 rounded-xl">
-                  <p className="text-sm text-gray-400">bcrypt</p>
-                  <p className="font-semibold">{data.times.bcrypt}</p>
+                  <div className="bg-gray-800 p-3 rounded-xl">
+                    <p className="text-sm text-gray-400">MD5</p>
+                    <p className="font-semibold truncate">{data.times.MD5}</p>
+                  </div>
+
+                  <div className="bg-gray-800 p-3 rounded-xl">
+                    <p className="text-sm text-gray-400">SHA-256</p>
+                    <p className="font-semibold truncate ">
+                      {data.times["SHA-256"]}
+                    </p>
+                  </div>
+
+                  <div className="bg-gray-800 p-3 rounded-xl">
+                    <p className="text-sm text-gray-400">bcrypt</p>
+                    <p className="font-semibold truncate">
+                      {data.times.bcrypt}
+                    </p>
+                  </div>
+
                 </div>
               </div>
-            </div>
 
-            {/* Hash Output */}
-            <div className="mt-5">
-              <h3 className="font-semibold mb-2">🔑 bcrypt Hash</h3>
-              <p className="text-xs bg-black/50 p-3 rounded-xl break-all">
-                {data.hash}
-              </p>
-            </div>
+              {/* Hash */}
+              <div className="mt-5">
+                <h3 className="font-semibold mb-2">
+                  🔑 bcrypt Hash
+                </h3>
 
-          </div>
-        )}
+                <p className="text-xs bg-black/50 p-3 rounded-xl break-all">
+                  {data.hash}
+                </p>
+              </div>
+
+            </div>
+          )}
+        </div>
+
+        {/* Right Side - Password Suggestions */}
+        <div className="backdrop-blur-xl bg-white/10 border border-white/20 shadow-2xl rounded-3xl p-8 text-white">
+
+          <h2 className="text-2xl font-bold mb-4">
+            🚀 Strong Password Suggestions
+          </h2>
+
+          {!data ? (
+            <p className="text-gray-300">
+              Enter a password to generate stronger versions.
+            </p>
+          ) : (
+            <div className="space-y-3">
+
+              {data.suggestions.map((item, index) => (
+                <div
+                  key={index}
+                  className="bg-gray-800 border border-gray-700 p-4 rounded-xl flex items-center justify-between"
+                >
+
+                  <span className="font-mono text-sm break-all">
+                    {item}
+                  </span>
+
+                  <button
+                    onClick={() => navigator.clipboard.writeText(item)}
+                    className="ml-3 cursor-pointer bg-blue-600 hover:bg-blue-700 px-3 py-1 rounded-lg text-sm transition-all"
+                  >
+                    Copy
+                  </button>
+
+                </div>
+              ))}
+
+            </div>
+          )}
+
+        </div>
 
       </div>
     </div>
